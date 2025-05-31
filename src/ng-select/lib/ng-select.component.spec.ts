@@ -8,7 +8,7 @@ import { getNgSelectElement, selectOption, TestsErrorHandler, tickAndDetectChang
 import { MockConsole, MockNgZone } from '../testing/mocks';
 import { NgSelectConfig } from './config.service';
 import { ConsoleService } from './console.service';
-import { NgSelectComponent } from './ng-select.component';
+import { NgSelectComponent } from '@ng-select/ng-select';
 import { NgSelectModule } from './ng-select.module';
 import { KeyCode, NgOption } from './ng-select.types';
 
@@ -365,13 +365,13 @@ describe('NgSelectComponent', () => {
                 </ng-select>`,
 			);
 
-			fixture.componentInstance.cities = [{ label: '<img src="azd" (error)="alert(1)" />', name: 'Vilnius' }];
+			fixture.componentInstance.cities = [{ label: '<img src="azd" (error)="alert(1)"/>', name: 'Vilnius' }];
 			tickAndDetectChanges(fixture);
 			select = fixture.componentInstance.select;
 			select.open();
 
 			const options = fixture.debugElement.nativeElement.querySelectorAll('.ng-option');
-			expect(options[0].innerText).toBe('<img src="azd" (error)="alert(1)" />');
+			expect(options[0].innerText).toBe('<img src="azd" (error)="alert(1)"/>');
 		}));
 
 		it('should set items correctly after ngModel set first when typeahead and single select is used', fakeAsync(() => {

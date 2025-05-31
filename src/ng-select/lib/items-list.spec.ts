@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { ItemsList } from './items-list';
-import { NgSelectComponent } from './ng-select.component';
+import { NgSelectComponent } from '@ng-select/ng-select';
 import { DefaultSelectionModel } from './selection-model';
 
 describe('ItemsList', () => {

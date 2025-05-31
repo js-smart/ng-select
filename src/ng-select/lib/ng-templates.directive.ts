@@ -11,7 +11,7 @@ export class NgItemLabelDirective implements OnChanges {
 
 	constructor(private element: ElementRef<HTMLElement>) {}
 
-	ngOnChanges(changes: SimpleChanges) {
+	ngOnChanges(_changes: SimpleChanges) {
 		this.element.nativeElement.innerHTML = this.escape ? escapeHTML(this.ngItemLabel) : this.ngItemLabel;
 	}
 }

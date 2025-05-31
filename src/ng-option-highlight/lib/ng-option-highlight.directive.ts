@@ -50,7 +50,7 @@ export class NgOptionHighlightDirective implements OnChanges, AfterViewInit {
 		this._setInnerHtml(label.replace(termRegex, `<span class=\"highlighted\">$&</span>`));
 	}
 
-	private _setInnerHtml(html) {
+	private _setInnerHtml(html: any) {
 		this.renderer.setProperty(this.elementRef.nativeElement, 'innerHTML', html);
 	}
 

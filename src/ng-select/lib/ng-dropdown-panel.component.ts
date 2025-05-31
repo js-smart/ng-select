@@ -163,7 +163,7 @@ export class NgDropdownPanelComponent implements OnInit, OnChanges, OnDestroy {
 			return;
 		}
 
-		let scrollTo;
+		let scrollTo: number;
 		if (this.virtualScroll) {
 			const itemHeight = this._panelService.dimensions.itemHeight;
 			scrollTo = this._panelService.getScrollTo(index * itemHeight, itemHeight, this._lastScrollPosition);
@@ -344,7 +344,7 @@ export class NgDropdownPanelComponent implements OnInit, OnChanges, OnDestroy {
 		}
 	}
 
-	private _measureDimensions(): Promise<PanelDimensions> {
+	private async _measureDimensions(): Promise<PanelDimensions> {
 		if (this._panelService.dimensions.itemHeight > 0 || this.itemsLength === 0) {
 			return Promise.resolve(this._panelService.dimensions);
 		}
@@ -352,15 +352,13 @@ export class NgDropdownPanelComponent implements OnInit, OnChanges, OnDestroy {
 		const [first] = this.items;
 		this.update.emit([first]);
 
-		return Promise.resolve().then(() => {
-			const option = this._dropdown.querySelector(`#${first.htmlId}`);
-			const optionHeight = option.clientHeight;
-			this._virtualPadding.style.height = `${optionHeight * this.itemsLength}px`;
-			const panelHeight = this._scrollablePanel.clientHeight;
-			this._panelService.setDimensions(optionHeight, panelHeight);
-
-			return this._panelService.dimensions;
-		});
+		await Promise.resolve();
+		const option = this._dropdown.querySelector(`#${first.htmlId}`);
+		const optionHeight = option.clientHeight;
+		this._virtualPadding.style.height = `${optionHeight * this.itemsLength}px`;
+		const panelHeight = this._scrollablePanel.clientHeight;
+		this._panelService.setDimensions(optionHeight, panelHeight);
+		return this._panelService.dimensions;
 	}
 
 	private _fireScrollToEnd(scrollTop: number) {
@@ -380,7 +378,7 @@ export class NgDropdownPanelComponent implements OnInit, OnChanges, OnDestroy {
 		if (this.position !== 'auto') {
 			return this.position;
 		}
-		const selectRect: ClientRect = this._select.getBoundingClientRect();
+		const selectRect: DOMRect = this._select.getBoundingClientRect();
 		const scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
 		const offsetTop = selectRect.top + window.pageYOffset;
 		const height = selectRect.height;

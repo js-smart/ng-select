@@ -1,5 +1,5 @@
 import { newId } from './id';
-import { NgSelectComponent } from './ng-select.component';
+import { NgSelectComponent } from '@ng-select/ng-select';
 import { NgOption } from './ng-select.types';
 import * as searchHelper from './search-helper';
 import { SelectionModel } from './selection-model';
@@ -132,7 +132,7 @@ export class ItemsList {
 		term = searchHelper.stripSpecialChars(term).toLocaleLowerCase();
 		return this.filteredItems.find((item) => {
 			const label = searchHelper.stripSpecialChars(item.label).toLocaleLowerCase();
-			return label.substr(0, term.length) === term;
+			return label.substring(0, term.length) === term;
 		});
 	}
 
@@ -333,7 +333,7 @@ export class ItemsList {
 		// Check if items are already grouped by given key.
 		if (Array.isArray(items[0].value[<string>prop])) {
 			for (const item of items) {
-				const children = (item.value[<string>prop] || []).map((x, index) => this.mapItem(x, index));
+				const children = (item.value[<string>prop] || []).map((x: any, index: number) => this.mapItem(x, index));
 				groups.set(item, children);
 			}
 			return groups;
