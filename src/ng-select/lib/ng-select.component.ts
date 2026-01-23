@@ -126,15 +126,15 @@ export class NgSelectComponent implements OnChanges, OnInit, AfterViewInit, Cont
 	readonly selectOnTab = input(false, { transform: booleanAttribute });
 	readonly openOnEnter = input(undefined, { transform: booleanAttribute });
 	readonly maxSelectedItems = input<number, unknown>(undefined, { transform: numberAttribute });
-	readonly groupBy = input<string | ((value: any) => any)>(undefined);
+	readonly groupBy = model<string | ((value: any) => any)>(undefined);
 	readonly groupValue = input<GroupValueFn>(undefined);
 	readonly bufferAmount = input(4, { transform: numberAttribute });
 	readonly virtualScroll = input<boolean, unknown>(undefined, { transform: booleanAttribute });
 	readonly selectableGroup = input(false, { transform: booleanAttribute });
 	readonly tabFocusOnClearButton = input<boolean | undefined>();
 	readonly selectableGroupAsModel = input(true, { transform: booleanAttribute });
-	readonly searchFn = input(null);
-	readonly trackByFn = input(null);
+	searchFn = model(null);
+	trackByFn = model(null);
 	readonly clearOnBackspace = input(true, { transform: booleanAttribute });
 	readonly labelForId = input(null);
 	readonly inputAttrs = input<Record<string, string>>({});
