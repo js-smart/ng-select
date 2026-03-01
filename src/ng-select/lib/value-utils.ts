@@ -1,5 +1,6 @@
 const unescapedHTMLExp = /[&<>"']/g;
 const hasUnescapedHTMLExp = RegExp(unescapedHTMLExp.source);
+const htmlTagExp = /<[^>]*>/g;
 const htmlEscapes = {
 	'&': '&amp;',
 	'<': '&lt;',
@@ -10,6 +11,10 @@ const htmlEscapes = {
 
 export function escapeHTML(value: string) {
 	return value && hasUnescapedHTMLExp.test(value) ? value.replace(unescapedHTMLExp, (chr) => htmlEscapes[chr]) : value;
+}
+
+export function stripHtml(value: string) {
+	return value ? value.replace(htmlTagExp, ' ').replace(/\s+/g, ' ').trim() : value;
 }
 
 export function isDefined(value: any) {

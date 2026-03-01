@@ -3,7 +3,7 @@ import { NgSelectComponent } from './ng-select.component';
 import { NgOption } from './ng-select.types';
 import * as searchHelper from './search-helper';
 import { SelectionModel } from './selection-model';
-import { isDefined, isFunction, isObject } from './value-utils';
+import { isDefined, isFunction, isObject, stripHtml } from './value-utils';
 
 type OptionGroups = Map<string | NgOption, NgOption[]>;
 
@@ -236,9 +236,11 @@ export class ItemsList {
 		const hasNgOptionValue = isObject(item) && '$ngOptionValue' in item;
 		const label = hasNgOptionLabel ? item.$ngOptionLabel : this.resolveNested(item, this._ngSelect.bindLabel());
 		const value = hasNgOptionValue ? item.$ngOptionValue : item;
+		const optionLabel = isDefined(label) ? label.toString() : '';
 		return {
 			index,
-			label: isDefined(label) ? label.toString() : '',
+			label: optionLabel,
+			ariaLabel: stripHtml(optionLabel),
 			value,
 			disabled: item && item.disabled ? item.disabled : false,
 			htmlId: `${this._ngSelect.dropdownId}-${index}`,

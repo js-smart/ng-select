@@ -60,7 +60,7 @@ import { NgDropdownPanelService } from './ng-dropdown-panel.service';
 import { NgOptionComponent } from './ng-option.component';
 import { DropdownPosition, KeyCode, NgOption } from './ng-select.types';
 import { DefaultSelectionModelFactory, SelectionModelFactory } from './selection-model';
-import { isDefined, isFunction, isObject, isPromise } from './value-utils';
+import { isDefined, isFunction, isObject, isPromise, stripHtml } from './value-utils';
 
 export const SELECTION_MODEL_FACTORY = new InjectionToken<SelectionModelFactory>('ng-select-selection-model');
 export type AddTagFn = (term: string) => any | Promise<any>;
@@ -230,6 +230,7 @@ export class NgSelectComponent implements OnChanges, OnInit, AfterViewInit, Cont
 	readonly clearButton = viewChild<ElementRef<HTMLSpanElement>>('clearButton');
 	// public variables
 	readonly dropdownId = newId();
+	readonly dropdownListboxId = `${this.dropdownId}-listbox`;
 	readonly element: HTMLElement;
 
 	// variables
@@ -779,8 +780,10 @@ export class NgSelectComponent implements OnChanges, OnInit, AfterViewInit, Cont
 					.filter(({ item }) => isDefined(item))
 					// process to update disabled and label
 					.forEach(({ option, item }) => {
+						const optionLabel = option.label() || item.label;
 						item.disabled = option.disabled();
-						item.label = option.label() || item.label;
+						item.label = optionLabel;
+						item.ariaLabel = stripHtml(optionLabel);
 					});
 			},
 			{ injector: this._injector },
@@ -881,7 +884,7 @@ export class NgSelectComponent implements OnChanges, OnInit, AfterViewInit, Cont
 			autocorrect: 'off',
 			autocapitalize: 'off',
 			autocomplete: 'off',
-			'aria-controls': this.dropdownId,
+			'aria-controls': this.dropdownListboxId,
 			...this.inputAttrs(),
 		};
 

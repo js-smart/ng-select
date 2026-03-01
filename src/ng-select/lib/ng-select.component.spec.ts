@@ -4287,11 +4287,26 @@ describe('NgSelectComponent', () => {
 			expect(input.hasAttribute('aria-controls')).toBe(false);
 		}));
 
-		it('should set aria-controls to dropdownId on open', fakeAsync(() => {
+		it('should set aria-controls to listbox id on open', fakeAsync(() => {
 			triggerKeyDownEvent(getNgSelectElement(fixture), KeyCode.Space);
 			tickAndDetectChanges(fixture);
 
-			expect(input.getAttribute('aria-controls')).toBe(select.dropdownId);
+			expect(input.getAttribute('aria-controls')).toBe(select.dropdownListboxId);
+		}));
+
+		it('should set aria-haspopup to listbox', fakeAsync(() => {
+			expect(input.getAttribute('aria-haspopup')).toBe('listbox');
+		}));
+
+		it('should set aria-owns to listbox id on open', fakeAsync(() => {
+			triggerKeyDownEvent(getNgSelectElement(fixture), KeyCode.Space);
+			tickAndDetectChanges(fixture);
+
+			expect(input.getAttribute('aria-owns')).toBe(select.dropdownListboxId);
+		}));
+
+		it('should set aria-owns absent when closed', fakeAsync(() => {
+			expect(input.hasAttribute('aria-owns')).toBe(false);
 		}));
 
 		it('should set aria-activedecendant equal to chosen item on open', fakeAsync(() => {
@@ -4322,6 +4337,22 @@ describe('NgSelectComponent', () => {
 			triggerKeyDownEvent(getNgSelectElement(fixture), KeyCode.Enter);
 			tickAndDetectChanges(fixture);
 			expect(input.hasAttribute('aria-activedescendant')).toBe(false);
+		}));
+
+		it('should set listbox id to dropdownListboxId on open', fakeAsync(() => {
+			triggerKeyDownEvent(getNgSelectElement(fixture), KeyCode.Space);
+			tickAndDetectChanges(fixture);
+
+			const listbox = fixture.debugElement.nativeElement.querySelector('.ng-dropdown-panel-items[role="listbox"]');
+			expect(listbox.getAttribute('id')).toBe(select.dropdownListboxId);
+		}));
+
+		it('should set option aria-label from item label', fakeAsync(() => {
+			triggerKeyDownEvent(getNgSelectElement(fixture), KeyCode.Space);
+			tickAndDetectChanges(fixture);
+
+			const firstOption = fixture.debugElement.nativeElement.querySelector('.ng-option[role="option"]');
+			expect(firstOption.getAttribute('aria-label')).toBe(select.itemsList.filteredItems[0].ariaLabel);
 		}));
 
 		it('should add labelForId on filter input id attribute', fakeAsync(() => {

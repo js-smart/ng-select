@@ -42,15 +42,17 @@
 				(focus)="onInputFocus($event)"
 				(input)="filter(searchInput.value)"
 				[attr.aria-activedescendant]="isOpen() ? itemsList?.markedItem?.htmlId : null"
-				[attr.aria-controls]="isOpen() ? dropdownId : null"
+				[attr.aria-controls]="isOpen() ? dropdownListboxId : null"
 				[attr.aria-expanded]="isOpen()"
 				[attr.aria-label]="ariaLabel()"
+				[attr.aria-owns]="isOpen() ? dropdownListboxId : null"
 				[attr.id]="labelForId()"
 				[attr.tabindex]="tabIndex()"
 				[disabled]="disabled()"
 				[readOnly]="!searchable() || itemsList.maxItemsSelected"
 				[value]="searchTerm ?? ''"
 				aria-autocomplete="list"
+				aria-haspopup="listbox"
 				role="combobox" />
 		</div>
 	</div>
@@ -96,6 +98,7 @@
 		[headerTemplate]="headerTemplate()"
 		[footerTemplate]="footerTemplate()"
 		[filterValue]="searchTerm"
+		[listboxId]="dropdownListboxId"
 		[items]="itemsList.filteredItems"
 		[showAddTag]="showAddTag"
 		[markedItem]="itemsList.markedItem"
@@ -122,6 +125,7 @@
 					[class.ng-option-child]="!!item.parent"
 					[class.ng-option-marked]="item === itemsList.markedItem"
 					[attr.aria-selected]="item.selected"
+					[attr.aria-label]="item.ariaLabel || item.label"
 					[attr.id]="item?.htmlId"
 					[attr.aria-setsize]="itemsList.filteredItems.length"
 					[attr.aria-posinset]="item.index + 1">
