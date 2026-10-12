@@ -2,7 +2,7 @@ import { ComponentRef } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { ItemsList } from './items-list';
-import { NgSelectComponent } from './ng-select.component';
+import { NgSelectComponent } from './ng-select/ng-select.component';
 import { provideNgSelect } from './ng-select.module';
 import { DefaultSelectionModel } from './selection-model';
 
@@ -626,7 +626,7 @@ describe('ItemsList', () => {
 			const list = itemsListFactory(component);
 
 			expect(list.resolveNested({ city: null }, 'city.name')).toBeNull();
-			expect(list.resolveNested({ city: { name: 'Vilnius' } }, 'city.name')).toBe('Vilnius');
+			expect(list.resolveNested({ city: { name: 'Paris' } }, 'city.name')).toBe('Paris');
 		});
 	});
 
