@@ -14,6 +14,11 @@ type OptionGroups = Map<string | NgOption, NgOption[]>;
  */
 export class ItemsList {
 	private _groups: OptionGroups;
+	// Render-tracking key per option, reused across setItems for the same source item (#2551, #2909).
+	private _rowKeys = new WeakMap<NgOption, object>();
+	private _optionKeyPool = new Map<unknown, object[]>();
+	private _groupKeyPool = new Map<unknown, object[]>();
+	private _groupSources = new WeakMap<NgOption, unknown>();
 
 	/**
 	 * Creates an instance of ItemsList.
@@ -146,7 +151,20 @@ export class ItemsList {
 			this._groups = new Map();
 			this._groups.set(undefined, this._items);
 		}
+		this._assignRowKeys();
 		this._filteredItems = [...this._items];
+	}
+
+	/**
+	 * Returns a key that is unique per rendered option and stable across `setItems` for the same source item.
+	 *
+	 * @param option - The option to process.
+	 * @returns The tracking key; the option itself when it is not part of the current items.
+	 *
+	 * @since 24.2.2
+	 */
+	rowKey(option: NgOption): unknown {
+		return this._rowKeys.get(option) ?? option;
 	}
 
 	/**
@@ -633,6 +651,28 @@ export class ItemsList {
 	}
 
 	/**
+	 * Assigns each option a unique row key, reusing the previous key of the same source value and occurrence.
+	 *
+	 * @since 24.2.2
+	 */
+	private _assignRowKeys() {
+		const optionPool = new Map<unknown, object[]>();
+		const groupPool = new Map<unknown, object[]>();
+		for (const option of this._items) {
+			const isGroup = this._groupSources.has(option);
+			const source = isGroup ? this._groupSources.get(option) : option.value;
+			const pool = isGroup ? groupPool : optionPool;
+			const keys = pool.get(source) ?? [];
+			pool.set(source, keys);
+			const key = (isGroup ? this._groupKeyPool : this._optionKeyPool).get(source)?.[keys.length] ?? {};
+			keys.push(key);
+			this._rowKeys.set(option, key);
+		}
+		this._optionKeyPool = optionPool;
+		this._groupKeyPool = groupPool;
+	}
+
+	/**
 	 * Flattens option groups into the render order used by the dropdown.
 	 *
 	 * @param groups - The groups.
@@ -686,6 +726,7 @@ export class ItemsList {
 				key,
 				children.map((x) => x.value),
 			);
+			this._groupSources.set(parent, isObjectKey ? (<NgOption>key).value : key);
 			items.push(parent);
 			items.push(...children);
 		}

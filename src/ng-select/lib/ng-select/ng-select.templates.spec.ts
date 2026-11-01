@@ -1,10 +1,49 @@
-import { ComponentFixture } from '@angular/core/testing';
+import { Component, input, OnInit, signal, viewChild } from '@angular/core';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { beforeEach, describe, expect, it } from 'vitest';
-import { getNgSelectElement, selectOption, tickAndDetectChanges, triggerKeyDownEvent } from '../../testing/helpers';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { applyZonelessFixtureCompat, getNgSelectElement, selectOption, tickAndDetectChanges, triggerKeyDownEvent } from '../../testing/helpers';
+import { NgOptionTemplateDirective } from '../directives/ng-templates.directive';
+import { NgOptionComponent } from '../ng-option.component';
+import { provideNgSelect } from '../ng-select.module';
 import { KeyCode } from '../types/ng-select.types';
+import { NgSelectComponent } from './ng-select.component';
 
 import { createEvent, createTestingModule, NgSelectTestComponent } from '../../testing/ng-select-test-fixtures';
+
+// Derives its text once per view, like many consumer option components (#2909)
+@Component({
+	selector: 'ng-test-once-label',
+	template: `<span class="once-label">{{ text }}</span>`,
+})
+class OnceLabelComponent implements OnInit {
+	readonly value = input<string>();
+	text = '';
+
+	ngOnInit() {
+		this.text = this.value();
+	}
+}
+
+@Component({
+	selector: 'ng-test-row-host',
+	imports: [NgSelectComponent, NgOptionComponent, NgOptionTemplateDirective, OnceLabelComponent],
+	template: '',
+})
+class RowHostComponent {
+	readonly select = viewChild.required(NgSelectComponent);
+	readonly items = signal<any[]>([]);
+}
+
+function createRowHost(template: string) {
+	TestBed.configureTestingModule({ providers: [...provideNgSelect()] });
+	TestBed.overrideComponent(RowHostComponent, { set: { template } });
+	return applyZonelessFixtureCompat(TestBed.createComponent(RowHostComponent));
+}
+
+function renderedRows(selector: string) {
+	return Array.from(document.querySelectorAll(`.ng-dropdown-panel ${selector}`)).map((el) => el.textContent.trim());
+}
 
 describe('NgSelectComponent', () => {
 	describe('Appearance', () => {
@@ -557,6 +596,103 @@ describe('NgSelectComponent', () => {
 			await selectOption(fixture, KeyCode.ArrowDown, 2);
 			await tickAndDetectChanges(fixture);
 			expect(ngControl.classList.contains('ng-has-value')).toBeTruthy();
+		});
+	});
+
+	// https://github.com/ng-select/ng-select/issues/2909
+	describe('Option rows after items change', () => {
+		const onceTemplate = `<ng-template ng-option-tmp let-item="item"><ng-test-once-label [value]="item.name" /></ng-template>`;
+		const people = [{ name: 'A' }, { name: 'B' }, { name: 'C' }];
+
+		async function openRowHost(template: string, items: any[]) {
+			const fixture = createRowHost(template);
+			fixture.componentInstance.items.set(items);
+			await tickAndDetectChanges(fixture);
+			fixture.componentInstance.select().open();
+			await tickAndDetectChanges(fixture);
+			return fixture;
+		}
+
+		it('should render the remaining items in an init-once option template after an item is removed', async () => {
+			const fixture = await openRowHost(`<ng-select [items]="items()" bindLabel="name">${onceTemplate}</ng-select>`, people);
+			expect(renderedRows('.once-label')).toEqual(['A', 'B', 'C']);
+
+			fixture.componentInstance.items.set([people[0], people[2]]);
+			await tickAndDetectChanges(fixture);
+
+			expect(renderedRows('.once-label')).toEqual(['A', 'C']);
+		});
+
+		it('should render replaced items in an init-once option template', async () => {
+			const fixture = await openRowHost(`<ng-select [items]="items()" bindLabel="name">${onceTemplate}</ng-select>`, people);
+
+			fixture.componentInstance.items.set([{ name: 'D' }]);
+			await tickAndDetectChanges(fixture);
+
+			expect(renderedRows('.once-label')).toEqual(['D']);
+		});
+
+		it('should render filtered value-less ng-options in an init-once option template', async () => {
+			const fixture = createRowHost(`<ng-select>
+				<ng-option>Alpha</ng-option><ng-option>Beta</ng-option><ng-option>Gamma</ng-option>
+				<ng-template ng-option-tmp let-option="item$"><ng-test-once-label [value]="option.label" /></ng-template>
+			</ng-select>`);
+			await tickAndDetectChanges(fixture);
+			await tickAndDetectChanges(fixture);
+			fixture.componentInstance.select().open();
+			await tickAndDetectChanges(fixture);
+
+			fixture.componentInstance.select().filter('gam');
+			await tickAndDetectChanges(fixture);
+
+			expect(renderedRows('.once-label')).toEqual(['Gamma']);
+		});
+
+		it('should render the scrolled virtual viewport in an init-once option template', async () => {
+			const items = Array.from({ length: 300 }, (_, i) => ({ name: `n${i}` }));
+			const fixture = await openRowHost(`<ng-select [items]="items()" bindLabel="name" [virtualScroll]="true">${onceTemplate}</ng-select>`, items);
+			await new Promise((resolve) => setTimeout(resolve, 100));
+			await tickAndDetectChanges(fixture);
+
+			const scrollHost = document.querySelector<HTMLElement>('.ng-dropdown-panel-items');
+			scrollHost.scrollTop = 2000;
+			scrollHost.dispatchEvent(new Event('scroll'));
+			await new Promise((resolve) => setTimeout(resolve, 100));
+			await tickAndDetectChanges(fixture);
+
+			const viewPortLabels = fixture.componentInstance.select().viewPortItems.map((item) => item.label);
+			expect(viewPortLabels[0]).not.toBe('n0');
+			expect(renderedRows('.once-label')).toEqual(viewPortLabels);
+		});
+
+		describe('duplicate values', () => {
+			let warnings: string[];
+			beforeEach(() => {
+				warnings = [];
+				vi.spyOn(console, 'warn').mockImplementation((...args: unknown[]) => warnings.push(args.map(String).join(' ')));
+			});
+			afterEach(() => vi.restoreAllMocks());
+
+			it('should render duplicate primitives without duplicated track keys', async () => {
+				const fixture = await openRowHost(`<ng-select [items]="items()"></ng-select>`, ['a', 'b', 'a', 'c']);
+				fixture.componentInstance.select().filter('a');
+				await tickAndDetectChanges(fixture);
+				fixture.componentInstance.items.set(['c', 'a', 'a']);
+				await tickAndDetectChanges(fixture);
+				fixture.componentInstance.select().filter('');
+				await tickAndDetectChanges(fixture);
+
+				expect(renderedRows('.ng-option')).toEqual(['c', 'a', 'a']);
+				expect(warnings.filter((w) => w.includes('NG0955'))).toEqual([]);
+			});
+
+			it('should render the same object twice without duplicated track keys', async () => {
+				const item = { name: 'x' };
+				await openRowHost(`<ng-select [items]="items()" bindLabel="name"></ng-select>`, [item, { name: 'y' }, item]);
+
+				expect(renderedRows('.ng-option')).toEqual(['x', 'y', 'x']);
+				expect(warnings.filter((w) => w.includes('NG0955'))).toEqual([]);
+			});
 		});
 	});
 });

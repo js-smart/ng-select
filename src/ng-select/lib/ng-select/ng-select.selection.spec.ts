@@ -141,6 +141,40 @@ describe('NgSelectComponent', () => {
 			await tickAndDetectChanges(fixture);
 			expect(fixture.componentInstance.selectedCity).toEqual(fixture.componentInstance.cities[0]);
 		});
+
+		it('should keep primitive option elements attached when items are rebuilt between mousedown and click', async () => {
+			const fixture = createTestingModule(NgSelectTestComponent, `<ng-select [items]="citiesNames.slice()" [(ngModel)]="selectedCity"></ng-select>`);
+			const select = fixture.componentInstance.select();
+			select.open();
+			await tickAndDetectChanges(fixture);
+
+			const option = document.querySelector<HTMLElement>('.ng-dropdown-panel .ng-option');
+			option.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+			await tickAndDetectChanges(fixture);
+
+			expect(option.isConnected).toBe(true);
+			option.click();
+			await tickAndDetectChanges(fixture);
+			expect(fixture.componentInstance.selectedCity).toBe(fixture.componentInstance.citiesNames[0]);
+		});
+
+		it('should keep selectable group headers attached when items are rebuilt between mousedown and click', async () => {
+			const fixture = createTestingModule(
+				NgSelectGroupingTestComponent,
+				`<ng-select [items]="accounts.slice()" bindLabel="name" groupBy="country" [selectableGroup]="true" [multiple]="true" [(ngModel)]="selectedAccount"></ng-select>`,
+			);
+			fixture.componentInstance.select().open();
+			await tickAndDetectChanges(fixture);
+
+			const header = document.querySelector<HTMLElement>('.ng-dropdown-panel .ng-optgroup');
+			header.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+			await tickAndDetectChanges(fixture);
+
+			expect(header.isConnected).toBe(true);
+			header.click();
+			await tickAndDetectChanges(fixture);
+			expect(fixture.componentInstance.selectedAccount).toEqual([{ country: 'United States' }]);
+		});
 	});
 
 	describe('Multiple', () => {

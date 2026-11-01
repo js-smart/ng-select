@@ -230,7 +230,7 @@ export class NgSelectComponent implements OnChanges, OnInit, AfterViewInit, Cont
 	/** Allow to filter by custom search function */
 	readonly _searchFn = input(null, { alias: 'searchFn' });
 	readonly searchFn = linkedSignal(() => this._searchFn());
-	/** Provide custom trackBy function */
+	/** Returns a stable identity for an item; by default rows are tracked per item. */
 	readonly _trackByFn = input(null, { alias: 'trackByFn' });
 	readonly trackByFn = linkedSignal(() => this._trackByFn());
 	/** Clear selected values one by one when clicking backspace. Default `true` */
@@ -1110,14 +1110,13 @@ export class NgSelectComponent implements OnChanges, OnInit, AfterViewInit, Cont
 		}
 	}
 
-	trackByOption = (index: number, item: NgOption) => {
+	trackByOption = (_index: number, item: NgOption) => {
 		if (this.trackByFn()) {
 			return this.trackByFn()(item.value);
 		}
 
-		// Track by position: options are re-created on every items change, so identity tracking
-		// would replace the option DOM between mousedown and click (#2551).
-		return index;
+		// Per-item key that survives NgOption rebuilds (#2551) without reusing rows across items (#2909).
+		return this.itemsList.rowKey(item);
 	};
 
 	/**
