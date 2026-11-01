@@ -42,6 +42,8 @@ export class ExampleComponent {}
 </ng-select>
 ```
 
+The label must be child content of the element: a `[innerHTML]` or `[textContent]` binding on the same element is overwritten, so bind it on a child span instead. Child nodes are rendered as highlighted copies, so event listeners on them do not fire.
+
 ## Development
 
 ### Build

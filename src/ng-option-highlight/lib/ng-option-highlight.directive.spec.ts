@@ -131,3 +131,128 @@ describe('NgOptionHighlightDirective', () => {
 		expect(span.nativeElement.textContent).toBe('+My text is) high\\lighted');
 	});
 });
+
+@Component({
+	template: `
+		@for (item of items; track $index) {
+			<span class="row" [ngOptionHighlight]="term">{{ item }}</span>
+		}
+		<span id="bound" [ngOptionHighlight]="term">{{ label }}</span>
+		<div id="container-host">
+			<ng-container [ngOptionHighlight]="term">{{ label }}</ng-container>
+		</div>
+		<span id="nested" [ngOptionHighlight]="term"
+			><b>{{ label }}</b> &amp; more
+			@if (showExtra) {
+				<i>extra {{ label }}</i>
+			}
+		</span>
+	`,
+	changeDetection: ChangeDetectionStrategy.Eager,
+	imports: [NgOptionHighlightDirective],
+})
+class DynamicTestComponent {
+	items = ['Apple', 'Banana', 'Cherry'];
+	term = '';
+	label = 'First label';
+	showExtra = false;
+}
+
+describe('NgOptionHighlightDirective with changing content', () => {
+	let fixture: ComponentFixture<DynamicTestComponent>;
+
+	// Lets pending render hooks and MutationObserver callbacks run.
+	async function settle() {
+		fixture.detectChanges();
+		await fixture.whenStable();
+		await new Promise((resolve) => setTimeout(resolve));
+	}
+
+	beforeEach(async () => {
+		fixture = applyZonelessFixtureCompat(
+			TestBed.configureTestingModule({
+				imports: [DynamicTestComponent],
+			}).createComponent(DynamicTestComponent),
+		);
+		await settle();
+	});
+
+	it('should show the current label when an index-tracked row is reused for another item', async () => {
+		fixture.componentInstance.items = ['Cherry'];
+		fixture.componentInstance.term = 'ch';
+		await settle();
+		const rows = fixture.nativeElement.querySelectorAll('.row');
+		expect(rows.length).toBe(1);
+		expect(rows[0].textContent).toBe('Cherry');
+		expect(rows[0].innerHTML).toBe('<span class="highlighted">Ch</span>erry');
+	});
+
+	it('should show reused rows without highlight when the term is cleared', async () => {
+		fixture.componentInstance.term = 'an';
+		await settle();
+		fixture.componentInstance.items = ['Date', 'Elderberry'];
+		fixture.componentInstance.term = '';
+		await settle();
+		const rows = fixture.nativeElement.querySelectorAll('.row');
+		expect(rows[0].innerHTML).toBe('Date');
+		expect(rows[1].innerHTML).toBe('Elderberry');
+	});
+
+	it('should reflect bound label changes after the first highlight', async () => {
+		const span = fixture.nativeElement.querySelector('#bound');
+		fixture.componentInstance.term = 'label';
+		await settle();
+		expect(span.innerHTML).toBe('First <span class="highlighted">label</span>');
+
+		fixture.componentInstance.label = 'Second label';
+		await settle();
+		expect(span.innerHTML).toBe('Second <span class="highlighted">label</span>');
+	});
+
+	it('should highlight nested markup and content added by control flow', async () => {
+		const span = fixture.nativeElement.querySelector('#nested');
+		fixture.componentInstance.term = 'label';
+		await settle();
+		expect(span.querySelector('b').innerHTML).toBe('First <span class="highlighted">label</span>');
+
+		fixture.componentInstance.showExtra = true;
+		fixture.componentInstance.label = 'Next label';
+		await settle();
+		expect(span.querySelector('b').innerHTML).toBe('Next <span class="highlighted">label</span>');
+		expect(span.querySelector('i').innerHTML).toBe('extra Next <span class="highlighted">label</span>');
+
+		fixture.componentInstance.showExtra = false;
+		await settle();
+		expect(span.querySelector('i')).toBeNull();
+	});
+
+	it('should not match markup or entities', async () => {
+		const span = fixture.nativeElement.querySelector('#nested');
+		fixture.componentInstance.term = 'amp';
+		await settle();
+		expect(span.querySelector('b')).not.toBeNull();
+		expect(span.querySelectorAll('.highlighted').length).toBe(0);
+		expect(span.textContent.replace(/\s+/g, ' ').trim()).toBe('First label & more');
+	});
+
+	it('should highlight terms with leading and trailing whitespace', async () => {
+		const span = fixture.nativeElement.querySelector('#bound');
+		fixture.componentInstance.term = ' first  label ';
+		await settle();
+		expect(span.innerHTML).toBe('<span class="highlighted">First</span> <span class="highlighted">label</span>');
+
+		fixture.componentInstance.term = '   ';
+		await settle();
+		expect(span.innerHTML).toBe('First label');
+	});
+
+	it('should leave an ng-container host untouched', async () => {
+		const host = fixture.nativeElement.querySelector('#container-host');
+		fixture.componentInstance.term = 'label';
+		await settle();
+		fixture.componentInstance.label = 'Other label';
+		await settle();
+		expect(host.textContent).toBe('Other label');
+		expect(host.querySelector('.highlighted')).toBeNull();
+	});
+});
