@@ -119,6 +119,7 @@ function optionalBooleanAttribute(value: unknown): boolean | undefined {
 		'[class.ng-select-searchable]': 'searchable()',
 		'[class.ng-select-clearable]': 'clearable()',
 		'[class.ng-select-opened]': 'isOpen()',
+		'[class.ng-select-inline-dropdown]': 'inlineDropdown()',
 		'[class.ng-select-filtered]': 'filtered',
 		'[class.ng-select-disabled]': 'disabled()',
 	},
@@ -187,6 +188,16 @@ export class NgSelectComponent implements OnChanges, OnInit, AfterViewInit, Cont
 	/** Close the dropdown when the page or an ancestor container scrolls. Default `false` */
 	readonly _closeOnScroll = input(this.config.closeOnScroll ?? false, { alias: 'closeOnScroll', transform: booleanAttribute });
 	readonly closeOnScroll = linkedSignal(() => this._closeOnScroll());
+	/**
+	 * Render the dropdown panel inside the select, below the field and in normal document flow,
+	 * instead of in a floating CDK overlay. The open panel takes layout space, so it grows its
+	 * container (e.g. a browser extension popup) and pushes following content down.
+	 * `appendTo` is ignored and the panel always opens below. Default `false`
+	 *
+	 * @since 24.3.0
+	 */
+	readonly _inlineDropdown = input<boolean, unknown>(this.config.inlineDropdown ?? false, { alias: 'inlineDropdown', transform: booleanAttribute });
+	readonly inlineDropdown = linkedSignal(() => this._inlineDropdown());
 	/** Allows to hide selected items. */
 	readonly _hideSelected = input(false, { alias: 'hideSelected', transform: booleanAttribute });
 	readonly hideSelected = linkedSignal(() => this._hideSelected());
@@ -660,6 +671,9 @@ export class NgSelectComponent implements OnChanges, OnInit, AfterViewInit, Cont
 	 */
 	@HostListener('keydown', ['$event'])
 	handleKeyDown($event: KeyboardEvent) {
+		if (this._isInlinePanelEvent($event)) {
+			return;
+		}
 		const keyName = $event.key;
 		if (Object.values(KeyCode).includes(keyName as KeyCode)) {
 			if (this.keyDownFn()($event) === false) {
@@ -669,6 +683,23 @@ export class NgSelectComponent implements OnChanges, OnInit, AfterViewInit, Cont
 		} else if (keyName && keyName.length === 1) {
 			this._keyPress$.next(keyName.toLocaleLowerCase());
 		}
+	}
+
+	/**
+	 * Whether the event comes from this select's inline panel (e.g. a header template input),
+	 * which the overlay keeps out of the host's key handling.
+	 *
+	 * @param $event - The DOM event to inspect.
+	 * @returns Whether the event originated inside the inline dropdown panel.
+	 *
+	 * @since 24.3.0
+	 */
+	private _isInlinePanelEvent($event: Event): boolean {
+		if (!this.inlineDropdown()) {
+			return false;
+		}
+		const panel = ($event.target as Element | null)?.closest?.('.ng-dropdown-panel');
+		return !!panel && panel.parentElement === this.element;
 	}
 
 	/**
@@ -1362,11 +1393,12 @@ export class NgSelectComponent implements OnChanges, OnInit, AfterViewInit, Cont
 
 		// open()/close() sync the overlay imperatively; this effect covers the paths that
 		// bypass them — an [isOpen] binding (manual mode), programmatic isOpen.set(), and
-		// dropdownPosition changes while open
+		// dropdownPosition or inlineDropdown changes while open
 		effect(
 			() => {
 				this.isOpen();
 				this.dropdownPosition();
+				this.inlineDropdown();
 				// Track the template query too: with [isOpen] pre-set, the first run can happen
 				// before view children resolve, and this re-runs the effect once they do
 				this._dropdownTemplate();
@@ -1680,6 +1712,12 @@ export class NgSelectComponent implements OnChanges, OnInit, AfterViewInit, Cont
 		if (!template || !viewContainer) {
 			return;
 		}
+		if (this.inlineDropdown()) {
+			// The template renders the panel in place; drop an overlay left from a toggle while open
+			this._dropdownOverlay.close();
+			this.dropdownOverlayRef = null;
+			return;
+		}
 		if (this.isOpen()) {
 			this._dropdownOverlay.open({
 				appendTo: this.appendTo() ?? this.config.appendTo ?? null,
@@ -1707,7 +1745,7 @@ export class NgSelectComponent implements OnChanges, OnInit, AfterViewInit, Cont
 	}
 
 	/**
-	 * Reports development-mode warnings for deprecated inputs.
+	 * Reports development-mode warnings for deprecated or ignored inputs.
 	 *
 	 * @since 23.7.0
 	 */
@@ -1719,6 +1757,9 @@ export class NgSelectComponent implements OnChanges, OnInit, AfterViewInit, Cont
 			this._console.warn(
 				'[ng-select] `popover` is deprecated and has no effect: the dropdown panel now renders in an Angular CDK overlay, which uses the native Popover API top layer automatically in supporting browsers.',
 			);
+		}
+		if (this.inlineDropdown() && this.appendTo()) {
+			this._console.warn('[ng-select] `appendTo` has no effect when `inlineDropdown` is set: the dropdown panel renders inside the select.');
 		}
 	}
 

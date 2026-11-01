@@ -326,6 +326,17 @@
 	left: auto;
 }
 
+// inlineDropdown: in-flow panel; legacy theme offsets reset, z-index tops the opened container (1001)
+.ng-select-inline-dropdown > .ng-dropdown-panel {
+	display: block;
+	position: relative;
+	top: auto;
+	right: auto;
+	bottom: auto;
+	left: auto;
+	z-index: 1002;
+}
+
 .ng-visually-hidden {
 	position: absolute !important;
 	width: 1px;

@@ -1,0 +1,27 @@
+<p>
+	With <code>inlineDropdown</code> the panel renders inside <code>&lt;ng-select&gt;</code>, directly below the field and in normal document flow. Opening it
+	makes the box below grow and pushes the following text down — like a browser extension popup that sizes itself from its content:
+</p>
+
+<div class="popup-box">
+	<ng-select [items]="people$ | async" bindLabel="company" placeholder="Select item" inlineDropdown [(ngModel)]="selected"> </ng-select>
+	<p class="after">Content after the select moves down while the dropdown is open.</p>
+</div>
+
+<br />
+<p>Multiple selection with virtual scroll over 1000 items works the same way:</p>
+
+<div class="popup-box">
+	<ng-select
+		[items]="numbers"
+		bindLabel="label"
+		bindValue="id"
+		placeholder="Select items"
+		inlineDropdown
+		[multiple]="true"
+		[closeOnSelect]="false"
+		[virtualScroll]="true"
+		[(ngModel)]="selectedMany">
+	</ng-select>
+	<p class="after">Content after the select moves down while the dropdown is open.</p>
+</div>

@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { By } from '@angular/platform-browser';
 import type { Mock } from 'vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { userEvent } from 'vitest/browser';
 import {
 	applyZonelessFixtureCompat,
 	getNgSelectElement,
@@ -1342,6 +1343,301 @@ describe('NgSelectComponent', () => {
 			expect(dropdown.classList.contains('panel-set')).toBe(false);
 			// panelClass is additive and cannot remove a class mirrored from the host.
 			expect(dropdown.classList.contains('someClass')).toBe(true);
+		});
+	});
+
+	describe('Inline dropdown', () => {
+		const inlineTemplate = (attrs = '') =>
+			`<ng-select [items]="cities" bindLabel="name" [(ngModel)]="selectedCity" ${attrs}></ng-select><div id="after">After</div>`;
+
+		function panelElement(): HTMLElement {
+			return document.querySelector<HTMLElement>('.ng-dropdown-panel');
+		}
+
+		it('should keep the overlay panel out of document flow by default', async () => {
+			const fixture = createTestingModule(NgSelectTestComponent, inlineTemplate());
+			const select = fixture.componentInstance.select();
+			const after = document.getElementById('after');
+			const hostHeight = select.element.offsetHeight;
+			const afterTop = after.getBoundingClientRect().top;
+
+			await openSelect(select, fixture);
+
+			expect(select.element.contains(panelElement())).toBe(false);
+			expect(panelElement().closest('.cdk-overlay-pane')).not.toBeNull();
+			expect(select.element.offsetHeight).toBe(hostHeight);
+			expect(after.getBoundingClientRect().top).toBe(afterTop);
+		});
+
+		it('should render the panel inside the host, in document flow, without a CDK overlay', async () => {
+			const fixture = createTestingModule(NgSelectTestComponent, inlineTemplate('[inlineDropdown]="true"'));
+			const select = fixture.componentInstance.select();
+			const after = document.getElementById('after');
+			const hostHeight = select.element.offsetHeight;
+			const afterTop = after.getBoundingClientRect().top;
+
+			await openSelect(select, fixture);
+
+			const panel = panelElement();
+			expect(panel.parentElement).toBe(select.element);
+			expect(panel.previousElementSibling.classList).toContain('ng-select-container');
+			expect(document.querySelector('.cdk-overlay-pane')).toBeNull();
+			expect(select['dropdownOverlayRef']).toBeNull();
+			expect(select.element.classList).toContain('ng-select-inline-dropdown');
+			// The mirrored host classes exclude the framework-managed mode class
+			expect(panel.classList).not.toContain('ng-select-inline-dropdown');
+			expect(select.element.offsetHeight).toBeGreaterThan(hostHeight);
+			expect(after.getBoundingClientRect().top).toBeGreaterThan(afterTop);
+			expect(panel.getBoundingClientRect().width).toBe(select.element.getBoundingClientRect().width);
+			expect(getComputedStyle(panel).opacity).toBe('1');
+			expect(getComputedStyle(panel).display).toBe('block');
+		});
+
+		it('should always open below and ignore dropdownPosition', async () => {
+			const fixture = createTestingModule(NgSelectTestComponent, inlineTemplate('inlineDropdown dropdownPosition="top"'));
+			const select = fixture.componentInstance.select();
+			await openSelect(select, fixture);
+
+			expect(select.currentPanelPosition).toBe('bottom');
+			expect(panelElement().classList).toContain('ng-select-bottom');
+			expect(select.element.classList).toContain('ng-select-bottom');
+		});
+
+		it('should select an option on click', async () => {
+			const fixture = createTestingModule(NgSelectTestComponent, inlineTemplate('inlineDropdown'));
+			const select = fixture.componentInstance.select();
+			await openSelect(select, fixture);
+
+			await userEvent.click(select.element.querySelectorAll<HTMLElement>('.ng-option')[1]);
+			await tickAndDetectChanges(fixture);
+
+			expect(fixture.componentInstance.selectedCity).toEqual(fixture.componentInstance.cities[1]);
+			expect(select.isOpen()).toBe(false);
+			expect(panelElement()).toBeNull();
+			// Park the pointer on the field so later panels don't open under it and get hover-marked
+			await userEvent.hover(select.element.querySelector('.ng-select-container'));
+		});
+
+		it('should select an option with the keyboard', async () => {
+			const fixture = createTestingModule(NgSelectTestComponent, inlineTemplate('inlineDropdown'));
+			await selectOption(fixture, KeyCode.ArrowDown, 2);
+			await tickAndDetectChanges(fixture);
+
+			expect(fixture.componentInstance.selectedCity).toEqual(fixture.componentInstance.cities[2]);
+		});
+
+		it('should close on Escape', async () => {
+			const fixture = createTestingModule(NgSelectTestComponent, inlineTemplate('inlineDropdown'));
+			const select = fixture.componentInstance.select();
+			await openSelect(select, fixture);
+
+			triggerKeyDownEvent(getNgSelectElement(fixture), KeyCode.Esc);
+			await tickAndDetectChanges(fixture);
+
+			expect(select.isOpen()).toBe(false);
+			expect(panelElement()).toBeNull();
+		});
+
+		it('should close on outside click and stay open on clicks inside the panel', async () => {
+			const fixture = createTestingModule(NgSelectTestComponent, inlineTemplate('inlineDropdown multiple="true" [closeOnSelect]="false"'));
+			const select = fixture.componentInstance.select();
+			await openSelect(select, fixture);
+
+			const items = panelElement().querySelector<HTMLElement>('.ng-dropdown-panel-items');
+			items.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+			items.click();
+			await tickAndDetectChanges(fixture);
+			expect(select.isOpen()).toBe(true);
+
+			const after = document.getElementById('after');
+			after.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+			after.click();
+			await tickAndDetectChanges(fixture);
+			expect(select.isOpen()).toBe(false);
+		});
+
+		it('should set listbox ARIA wiring', async () => {
+			const fixture = createTestingModule(NgSelectTestComponent, inlineTemplate('inlineDropdown'));
+			const select = fixture.componentInstance.select();
+			await openSelect(select, fixture);
+
+			const input = select.element.querySelector('input');
+			expect(input.getAttribute('aria-expanded')).toBe('true');
+			expect(input.getAttribute('aria-controls')).toBe(select.dropdownId);
+			expect(select.element.querySelector(`#${select.dropdownId}`).getAttribute('role')).toBe('listbox');
+		});
+
+		it('should render virtual scroll rows and emit scrollToEnd', async () => {
+			const fixture = createTestingModule(
+				NgSelectTestComponent,
+				`<ng-select [items]="cities" bindLabel="name" inlineDropdown [virtualScroll]="true"></ng-select>`,
+			);
+			const onScrollToEnd = vi.fn();
+			fixture.componentInstance.select().scrollToEnd.subscribe(onScrollToEnd);
+			fixture.componentInstance.cities = Array.from({ length: 200 }, (_, i) => ({ id: i, name: `City ${i}` }));
+			await tickAndDetectChanges(fixture);
+			const select = fixture.componentInstance.select();
+			await openSelect(select, fixture);
+			await tickAndDetectChanges(fixture);
+
+			const rendered = select.element.querySelectorAll('.ng-option').length;
+			expect(rendered).toBeGreaterThan(0);
+			expect(rendered).toBeLessThan(200);
+
+			const scrollHost = panelElement().querySelector<HTMLElement>('.ng-dropdown-panel-items');
+			scrollHost.scrollTop = scrollHost.scrollHeight;
+			scrollHost.dispatchEvent(new Event('scroll'));
+			await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+			await tickAndDetectChanges(fixture);
+
+			expect(select.element.querySelector('.ng-option:last-child').textContent).toContain('City 199');
+			expect(onScrollToEnd).toHaveBeenCalled();
+		});
+
+		it('should move the open panel between overlay and inline rendering when toggled', async () => {
+			const fixture = createTestingModule(NgSelectTestComponent, inlineTemplate());
+			const select = fixture.componentInstance.select();
+			await openSelect(select, fixture);
+			expect(panelElement().closest('.cdk-overlay-pane')).not.toBeNull();
+
+			select.inlineDropdown.set(true);
+			await tickAndDetectChanges(fixture);
+			expect(document.querySelectorAll('.ng-dropdown-panel').length).toBe(1);
+			expect(panelElement().parentElement).toBe(select.element);
+			expect(document.querySelector('.cdk-overlay-pane .ng-dropdown-panel')).toBeNull();
+
+			select.inlineDropdown.set(false);
+			await tickAndDetectChanges(fixture);
+			expect(document.querySelectorAll('.ng-dropdown-panel').length).toBe(1);
+			expect(panelElement().closest('.cdk-overlay-pane')).not.toBeNull();
+		});
+
+		it('should follow an [inlineDropdown] binding while open', async () => {
+			const fixture = createTestingModule(NgSelectTestComponent, inlineTemplate('[inlineDropdown]="inlineDropdown"'));
+			const select = fixture.componentInstance.select();
+			await openSelect(select, fixture);
+			expect(panelElement().closest('.cdk-overlay-pane')).not.toBeNull();
+
+			fixture.componentInstance.inlineDropdown = true;
+			await tickAndDetectChanges(fixture);
+			expect(document.querySelectorAll('.ng-dropdown-panel').length).toBe(1);
+			expect(panelElement().parentElement).toBe(select.element);
+
+			fixture.componentInstance.inlineDropdown = false;
+			await tickAndDetectChanges(fixture);
+			expect(document.querySelectorAll('.ng-dropdown-panel').length).toBe(1);
+			expect(panelElement().closest('.cdk-overlay-pane')).not.toBeNull();
+		});
+
+		describe('keyboard events from panel templates', () => {
+			const keydown = (target: Element, key: string) => target.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+
+			it('should still navigate and select from the search input', async () => {
+				const fixture = createTestingModule(NgSelectTestComponent, inlineTemplate('inlineDropdown'));
+				const select = fixture.componentInstance.select();
+				await openSelect(select, fixture);
+
+				const next = select.itemsList.filteredItems[select.itemsList.markedIndex + 1].value;
+				const input = select.element.querySelector('.ng-input input');
+				keydown(input, KeyCode.ArrowDown);
+				keydown(input, KeyCode.Enter);
+				await tickAndDetectChanges(fixture);
+
+				expect(fixture.componentInstance.selectedCity).toBe(next);
+			});
+
+			it('should keep the value on Backspace in an empty header input', async () => {
+				const fixture = createTestingModule(
+					NgSelectTestComponent,
+					`<ng-select [items]="cities" bindLabel="name" inlineDropdown [multiple]="true" [(ngModel)]="selectedCities">
+						<ng-template ng-header-tmp><input class="header-input" /></ng-template>
+					</ng-select>`,
+				);
+				fixture.componentInstance.selectedCities = [fixture.componentInstance.cities[0], fixture.componentInstance.cities[1]];
+				await tickAndDetectChanges(fixture);
+				const select = fixture.componentInstance.select();
+				await openSelect(select, fixture);
+
+				keydown(select.element.querySelector('.header-input'), KeyCode.Backspace);
+				await tickAndDetectChanges(fixture);
+
+				expect(fixture.componentInstance.selectedCities.length).toBe(2);
+				expect(select.selectedItems.length).toBe(2);
+			});
+
+			it('should not select or close on Enter in a footer input', async () => {
+				const fixture = createTestingModule(
+					NgSelectTestComponent,
+					`<ng-select [items]="cities" bindLabel="name" inlineDropdown [(ngModel)]="selectedCity">
+						<ng-template ng-footer-tmp><input class="footer-input" /></ng-template>
+					</ng-select>`,
+				);
+				const select = fixture.componentInstance.select();
+				await openSelect(select, fixture);
+
+				const footerInput = select.element.querySelector('.footer-input');
+				const event = new KeyboardEvent('keydown', { key: KeyCode.Enter, bubbles: true, cancelable: true });
+				footerInput.dispatchEvent(event);
+				await tickAndDetectChanges(fixture);
+
+				expect(event.defaultPrevented).toBe(false);
+				expect(select.isOpen()).toBe(true);
+				expect(fixture.componentInstance.selectedCity).toBeUndefined();
+			});
+
+			it('should not type-to-select or move the marked option from a header input when not searchable', async () => {
+				const fixture = createTestingModule(
+					NgSelectTestComponent,
+					`<ng-select [items]="cities" bindLabel="name" inlineDropdown [searchable]="false" [(ngModel)]="selectedCity">
+						<ng-template ng-header-tmp><input class="header-input" /></ng-template>
+					</ng-select>`,
+				);
+				const select = fixture.componentInstance.select();
+				await openSelect(select, fixture);
+				const marked = select.itemsList.markedItem;
+
+				const headerInput = select.element.querySelector('.header-input');
+				keydown(headerInput, 'l');
+				keydown(headerInput, 'o');
+				keydown(headerInput, KeyCode.ArrowDown);
+				await new Promise((resolve) => setTimeout(resolve, 250));
+				await tickAndDetectChanges(fixture);
+
+				expect(select.itemsList.markedItem).toBe(marked);
+				expect(select.isOpen()).toBe(true);
+			});
+		});
+
+		it('should use inlineDropdown from NgSelectConfig when not provided in template', async () => {
+			const config = new NgSelectConfig();
+			config.inlineDropdown = true;
+			const fixture = createTestingModule(NgSelectTestComponent, inlineTemplate(), config);
+			const select = fixture.componentInstance.select();
+			expect(select.inlineDropdown()).toBe(true);
+
+			await openSelect(select, fixture);
+			expect(panelElement().parentElement).toBe(select.element);
+		});
+
+		it('should warn that appendTo is ignored', async () => {
+			const warnSpy = vi.spyOn(MockConsole.prototype, 'warn');
+			try {
+				createTestingModule(NgSelectTestComponent, inlineTemplate('inlineDropdown appendTo="body"'));
+				expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('`appendTo` has no effect when `inlineDropdown`'));
+			} finally {
+				warnSpy.mockRestore();
+			}
+		});
+
+		it('should remove the panel when the select is destroyed', async () => {
+			const fixture = createTestingModule(NgSelectTestComponent, `@if (visible) {<ng-select [items]="cities" bindLabel="name" inlineDropdown></ng-select>}`);
+			await openSelect(fixture.componentInstance.select(), fixture);
+			expect(panelElement()).not.toBeNull();
+
+			fixture.componentInstance.visible = false;
+			await tickAndDetectChanges(fixture);
+			expect(panelElement()).toBeNull();
+			expect(document.querySelector('.cdk-overlay-pane')).toBeNull();
 		});
 	});
 

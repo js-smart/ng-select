@@ -101,14 +101,19 @@
 	}
 </div>
 
-<!-- Rendered through a TemplatePortal into the CDK overlay while the select is open;
+<!-- inlineDropdown: the panel renders here, in document flow below the field -->
+@if (inlineDropdown() && isOpen()) {
+	<ng-container [ngTemplateOutlet]="dropdownTemplate" />
+}
+
+<!-- Otherwise rendered through a TemplatePortal into the CDK overlay while the select is open;
      the embedded view stays part of this component's view tree, only the DOM moves. -->
 <ng-template #dropdownTemplate>
 	<ng-dropdown-panel
 		class="ng-dropdown-panel"
 		[virtualScroll]="dropdownVirtualScroll()"
 		[bufferAmount]="bufferAmount()"
-		[position]="dropdownPosition()"
+		[position]="inlineDropdown() ? 'bottom' : dropdownPosition()"
 		[outsideClickEvent]="outsideClickEvent()"
 		[closeOnScroll]="closeOnScroll()"
 		[headerTemplate]="headerTemplate()"

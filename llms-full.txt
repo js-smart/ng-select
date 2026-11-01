@@ -27,7 +27,7 @@ ng-select supports Signal Forms through `[formField]`, Reactive Forms through `f
 | [addTag]                    | `boolean \| ((term: string) => any \| Promise<any>)`                 | `false`          | Allows to create custom options.                                                                                                                                                                                                                                                                              |
 | addTagText                  | `string`                                                             | `Add item`       | Set custom text when using tagging                                                                                                                                                                                                                                                                            |
 | appearance                  | `string`                                                             | `underline`      | Allows to select dropdown appearance. Set to `outline` or `fill` for Material form-field styles (applies only to Material theme)                                                                                                                                                                              |
-| appendTo                    | `string`                                                             | null             | Append the dropdown overlay to any element using a css selector. Painting and positioning are unaffected; the target determines DOM containment (ancestor-scoped styles, focus enclosure).                                                                                                                    |
+| appendTo                    | `string`                                                             | null             | Append the dropdown overlay to any element using a css selector. Painting and positioning are unaffected; the target determines DOM containment (ancestor-scoped styles, focus enclosure). Ignored when `inlineDropdown` is set.                                                                              |
 | ariaLabel                   | `string`                                                             | `-`              | Sets `aria-label` on the combobox input.                                                                                                                                                                                                                                                                      |
 | ariaLabelDropdown           | `string`                                                             | `Options List`   | Sets `aria-label` on the dropdown listbox.                                                                                                                                                                                                                                                                    |
 | bufferAmount                | `number`                                                             | 4                | Used in virtual scrolling, the `bufferAmount` property controls the number of items preloaded in the background to ensure smoother and more seamless scrolling.                                                                                                                                               |
@@ -40,12 +40,13 @@ ng-select supports Signal Forms through `[formField]`, Reactive Forms through `f
 | [clearKeepsDisabledOptions] | `boolean`                                                            | `true`           | Keep selected disabled options when the clear button is used. `clearModel()` always clears them.                                                                                                                                                                                                              |
 | [clearOnBackspace]          | `boolean`                                                            | `true`           | With an empty search term, Backspace removes the last selected item (clears the value in single mode). Requires `[clearable]="true"`                                                                                                                                                                          |
 | [compareWith]               | `(a: any, b: any) => boolean`                                        | `undefined`      | A function to compare the option values with the selected values. The first argument is a value from an option. The second is a value from the selection(model). A boolean should be returned. When not set, options are matched by their `bindValue` property if set, otherwise by identity or equal labels. |
-| dropdownPosition            | `bottom` \| `top` \| `left` \| `right` \| `auto`                     | `auto`           | Set the dropdown position on open. `auto` opens below and flips above when there is not enough room                                                                                                                                                                                                           |
+| dropdownPosition            | `bottom` \| `top` \| `left` \| `right` \| `auto`                     | `auto`           | Set the dropdown position on open. `auto` opens below and flips above when there is not enough room (ignored when `inlineDropdown` is set)                                                                                                                                                                    |
 | [fixedPlaceholder]          | `boolean`                                                            | `true`           | Keep the placeholder rendered when an item is selected. Visibility is theme-dependent: the default and Ant Design themes hide it once a value is set, the Material theme floats it as a label                                                                                                                 |
 | [groupBy]                   | `string` \| `Function`                                               | null             | Allow to group items by key or function expression                                                                                                                                                                                                                                                            |
 | [groupValue]                | `(groupKey: string \| any, children: any[]) => string \| any`        | `-`              | Function expression to provide group value                                                                                                                                                                                                                                                                    |
 | [selectableGroup]           | `boolean`                                                            | false            | Allow to select group when groupBy is used                                                                                                                                                                                                                                                                    |
 | [selectableGroupAsModel]    | `boolean`                                                            | true             | Indicates whether to select all children or group itself                                                                                                                                                                                                                                                      |
+| [inlineDropdown]            | `boolean`                                                            | false            | Render the dropdown panel inside the select, below the field and in document flow, instead of in a CDK overlay, so it grows its container (e.g. extension popups). Ignores `appendTo` and `dropdownPosition` (always below). Adds the `ng-select-inline-dropdown` host class. Default `false`                 |
 | [items]                     | `Array<any>`                                                         | `[]`             | Items array                                                                                                                                                                                                                                                                                                   |
 | [loading]                   | `boolean`                                                            | `false`          | You can set the loading state from the outside (e.g. async items loading)                                                                                                                                                                                                                                     |
 | loadingText                 | `string`                                                             | `Loading...`     | Set custom text when for loading items                                                                                                                                                                                                                                                                        |
@@ -183,6 +184,7 @@ Application-wide defaults, applied when the matching `ng-select` input is not se
 | tabFocusOnClear      | `boolean`                  | `true`           | Default `[tabFocusOnClearButton]`                            |
 | outsideClickEvent    | `'click'` \| `'mousedown'` | `'click'`        | Default `outsideClickEvent`                                  |
 | closeOnScroll        | `boolean`                  | `false`          | Default `[closeOnScroll]`                                    |
+| inlineDropdown       | `boolean`                  | `false`          | Default `[inlineDropdown]`                                   |
 
 # Installation
 
@@ -3954,17 +3956,101 @@ export class ModalNgBootstrapExampleComponent {
 }
 ```
 
+## Inline dropdown (document flow)
+
+The overlay never takes layout space. When the dropdown must push content and grow its container instead — for example in a browser extension popup that sizes itself from the document height and would otherwise clip the panel — set `inlineDropdown`. The panel then renders inside `<ng-select>`, directly below the field, in normal document flow. `appendTo` is ignored, the panel always opens below, and `closeOnScroll` still applies. Because the panel is then a descendant of the host, host-scoped CSS and event handlers apply to it, and a fixed host height clips it. Set `NgSelectConfig.inlineDropdown` to enable it for every select.
+
+**Example: `inline-dropdown-example`**
+
+```ts title="inline-dropdown-example.component.ts"
+import { AsyncPipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { NgSelectComponent } from '@ng-select/ng-select';
+import { Observable } from 'rxjs';
+import { DataService, Person } from '../data.service';
+
+interface NumberedItem {
+	id: number;
+	label: string;
+}
+
+@Component({
+	selector: 'ng-inline-dropdown-example',
+	templateUrl: './inline-dropdown-example.component.html',
+	styleUrls: ['./inline-dropdown-example.component.scss'],
+	changeDetection: ChangeDetectionStrategy.Eager,
+	imports: [NgSelectComponent, FormsModule, AsyncPipe],
+})
+export class InlineDropdownExampleComponent {
+	private readonly dataService = inject(DataService);
+
+	readonly people$: Observable<Person[]> = this.dataService.getPeople();
+	readonly numbers: NumberedItem[] = Array.from({ length: 1000 }, (_, i) => ({ id: i + 1, label: `Item #${i + 1}` }));
+	selected: Person | null = null;
+	selectedMany: number[] = [];
+}
+```
+
+```html title="inline-dropdown-example.component.html"
+<p>
+	With <code>inlineDropdown</code> the panel renders inside <code>&lt;ng-select&gt;</code>, directly below the field and in normal document flow. Opening it
+	makes the box below grow and pushes the following text down — like a browser extension popup that sizes itself from its content:
+</p>
+
+<div class="popup-box">
+	<ng-select [items]="people$ | async" bindLabel="company" placeholder="Select item" inlineDropdown [(ngModel)]="selected"> </ng-select>
+	<p class="after">Content after the select moves down while the dropdown is open.</p>
+</div>
+
+<br />
+<p>Multiple selection with virtual scroll over 1000 items works the same way:</p>
+
+<div class="popup-box">
+	<ng-select
+		[items]="numbers"
+		bindLabel="label"
+		bindValue="id"
+		placeholder="Select items"
+		inlineDropdown
+		[multiple]="true"
+		[closeOnSelect]="false"
+		[virtualScroll]="true"
+		[(ngModel)]="selectedMany">
+	</ng-select>
+	<p class="after">Content after the select moves down while the dropdown is open.</p>
+</div>
+```
+
+```scss title="inline-dropdown-example.component.scss"
+.popup-box {
+	width: 320px;
+	max-width: 100%;
+	padding: 8px;
+	border: 1px solid #999;
+}
+
+.after {
+	margin: 8px 0 0;
+}
+```
+
 ## API
 
 Inputs used by the examples on this page:
 
-| Input           | Type         | Default | Description                                                                                                                                                                                |
-| --------------- | ------------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| appendTo        | `string`     | null    | Append the dropdown overlay to any element using a css selector. Painting and positioning are unaffected; the target determines DOM containment (ancestor-scoped styles, focus enclosure). |
-| [items]         | `Array<any>` | `[]`    | Items array                                                                                                                                                                                |
-| bindLabel       | `string`     | `label` | Object property to use for label. Default `label`                                                                                                                                          |
-| [closeOnScroll] | `boolean`    | `false` | Close the dropdown when the page or an ancestor container scrolls. Default `false`                                                                                                         |
-| placeholder     | `string`     | `-`     | Placeholder text.                                                                                                                                                                          |
+| Input            | Type         | Default | Description                                                                                                                                                                                |
+| ---------------- | ------------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| appendTo         | `string`     | null    | Append the dropdown overlay to any element using a css selector. Painting and positioning are unaffected; the target determines DOM containment (ancestor-scoped styles, focus enclosure). |
+| [items]          | `Array<any>` | `[]`    | Items array                                                                                                                                                                                |
+| bindLabel        | `string`     | `label` | Object property to use for label. Default `label`                                                                                                                                          |
+| [inlineDropdown] | `boolean`    | `false` | Render the dropdown panel inside the select, in normal document flow, instead of in a floating overlay. `appendTo` and `dropdownPosition` are ignored.                                     |
+| bindValue        | `string`     | `-`     | Object property to use for selected model. By default binds to whole object.                                                                                                               |
+| [multiple]       | `boolean`    | `false` | Allows to select multiple items.                                                                                                                                                           |
+| [closeOnSelect]  | `boolean`    | `true`  | Whether to close the menu when a value is selected                                                                                                                                         |
+| [virtualScroll]  | `boolean`    | `false` | Enable virtual scroll for better performance when rendering a lot of data                                                                                                                  |
+| [closeOnScroll]  | `boolean`    | `false` | Close the dropdown when the page or an ancestor container scrolls. Default `false`                                                                                                         |
+| placeholder      | `string`     | `-`     | Placeholder text.                                                                                                                                                                          |
 
 See the `NgSelectComponent` API reference for the complete list of inputs and outputs.
 

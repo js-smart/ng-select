@@ -91,6 +91,7 @@ export class NgSelectTestComponent {
 	disabled = false;
 	readonly = false;
 	dropdownPosition = 'bottom';
+	inlineDropdown = false;
 	visible = true;
 	dynamicClass = '';
 	panelClassBinding: string | string[] | Set<string> | Record<string, boolean> = '';

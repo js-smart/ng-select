@@ -18,16 +18,27 @@ The overlay renders in the browser's top layer (native Popover API) wherever sup
 
 <Demo example="modal-ng-bootstrap-example" />
 
+## Inline dropdown (document flow)
+
+The overlay never takes layout space. When the dropdown must push content and grow its container instead — for example in a browser extension popup that sizes itself from the document height and would otherwise clip the panel — set `inlineDropdown`. The panel then renders inside `<ng-select>`, directly below the field, in normal document flow. `appendTo` is ignored, the panel always opens below, and `closeOnScroll` still applies. Because the panel is then a descendant of the host, host-scoped CSS and event handlers apply to it, and a fixed host height clips it. Set `NgSelectConfig.inlineDropdown` to enable it for every select.
+
+<Demo example="inline-dropdown-example" />
+
 ## API
 
 Inputs used by the examples on this page:
 
-| Input           | Type         | Default | Description                                                                                                                                                                                |
-| --------------- | ------------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| appendTo        | `string`     | null    | Append the dropdown overlay to any element using a css selector. Painting and positioning are unaffected; the target determines DOM containment (ancestor-scoped styles, focus enclosure). |
-| [items]         | `Array<any>` | `[]`    | Items array                                                                                                                                                                                |
-| bindLabel       | `string`     | `label` | Object property to use for label. Default `label`                                                                                                                                          |
-| [closeOnScroll] | `boolean`    | `false` | Close the dropdown when the page or an ancestor container scrolls. Default `false`                                                                                                         |
-| placeholder     | `string`     | `-`     | Placeholder text.                                                                                                                                                                          |
+| Input            | Type         | Default | Description                                                                                                                                                                                |
+| ---------------- | ------------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| appendTo         | `string`     | null    | Append the dropdown overlay to any element using a css selector. Painting and positioning are unaffected; the target determines DOM containment (ancestor-scoped styles, focus enclosure). |
+| [items]          | `Array<any>` | `[]`    | Items array                                                                                                                                                                                |
+| bindLabel        | `string`     | `label` | Object property to use for label. Default `label`                                                                                                                                          |
+| [inlineDropdown] | `boolean`    | `false` | Render the dropdown panel inside the select, in normal document flow, instead of in a floating overlay. `appendTo` and `dropdownPosition` are ignored.                                     |
+| bindValue        | `string`     | `-`     | Object property to use for selected model. By default binds to whole object.                                                                                                               |
+| [multiple]       | `boolean`    | `false` | Allows to select multiple items.                                                                                                                                                           |
+| [closeOnSelect]  | `boolean`    | `true`  | Whether to close the menu when a value is selected                                                                                                                                         |
+| [virtualScroll]  | `boolean`    | `false` | Enable virtual scroll for better performance when rendering a lot of data                                                                                                                  |
+| [closeOnScroll]  | `boolean`    | `false` | Close the dropdown when the page or an ancestor container scrolls. Default `false`                                                                                                         |
+| placeholder      | `string`     | `-`     | Placeholder text.                                                                                                                                                                          |
 
 See the `NgSelectComponent` API reference for the complete list of inputs and outputs.

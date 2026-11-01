@@ -51,4 +51,6 @@ export class NgSelectConfig {
 	outsideClickEvent: 'click' | 'mousedown' = 'click';
 	/** Close the dropdown when the page or an ancestor container scrolls. */
 	closeOnScroll = false;
+	/** Render the dropdown panel inside the select, in normal document flow, instead of in a floating CDK overlay. */
+	inlineDropdown = false;
 }

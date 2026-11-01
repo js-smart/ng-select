@@ -39,6 +39,7 @@ export const EXAMPLES: Record<string, () => Promise<Type<unknown>>> = {
 		import('@examples/group-selectable-example/group-selectable-example.component').then((m) => m.GroupSelectableExampleComponent),
 	'group-selectable-hidden-example': () =>
 		import('@examples/group-selectable-hidden-example/group-selectable-hidden-example.component').then((m) => m.GroupSelectableHiddenExampleComponent),
+	'inline-dropdown-example': () => import('@examples/inline-dropdown-example/inline-dropdown-example.component').then((m) => m.InlineDropdownExampleComponent),
 	'material-appearances-example': () =>
 		import('@examples/material-appearances-example/material-appearances-example.component').then((m) => m.MaterialAppearancesExampleComponent),
 	'material-multiselect-example': () =>

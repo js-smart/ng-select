@@ -16,6 +16,7 @@ const INTERNAL_HOST_CLASSES = new Set([
 	'ng-select-opened',
 	'ng-select-filtered',
 	'ng-select-disabled',
+	'ng-select-inline-dropdown',
 	'ng-select-focused',
 	'ng-select-top',
 	'ng-select-bottom',
